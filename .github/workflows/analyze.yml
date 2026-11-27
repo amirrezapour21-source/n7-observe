@@ -1,0 +1,27 @@
+name: N7 analyze
+
+on:
+  workflow_dispatch:
+    inputs:
+      cmd:
+        description: "check or report"
+        default: "check"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: n7-observe
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python analyze.py "${{ github.event.inputs.cmd }}"
+      - run: sh push.sh
