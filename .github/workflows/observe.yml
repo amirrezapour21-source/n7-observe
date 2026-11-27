@@ -1,0 +1,43 @@
+name: N7 observe
+
+on:
+  schedule:
+    - cron: "5,15,35 0,4,8,12,16,20 * * *"
+    - cron: "50 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "full or light"
+        default: "full"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: n7-observe
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: gate
+        id: gate
+        run: |
+          R=$(python analyze.py gate); echo "$R"
+          case "$R" in RUN*) echo "go=1" >> "$GITHUB_OUTPUT";; esac
+      - name: observe
+        if: steps.gate.outputs.go == '1'
+        run: |
+          MODE="${{ github.event.inputs.mode }}"
+          if [ "${{ github.event.schedule }}" = "50 * * * *" ]; then MODE=light; fi
+          python observe.py "${MODE:-full}"
+      - name: commit
+        if: steps.gate.outputs.go == '1'
+        run: sh push.sh
